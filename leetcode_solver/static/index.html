@@ -109,6 +109,12 @@
         font-size: 0.82rem;
         margin-top: 3px;
       }
+      .session-state {
+        color: var(--accent-2);
+        font-size: 0.78rem;
+        margin-top: 2px;
+        font-weight: 600;
+      }
       .hidden { display: none; }
       .chips {
         display: flex;
@@ -236,11 +242,61 @@
       let activeLanguage = null;
       let sessions = [];
       let activeSessionId = null;
+      const generatingSessions = new Set();
+      const sessionMessages = new Map();
+      const requestCounterBySession = new Map();
+      const sessionStateById = new Map();
+      const defaultLanguages = Array.from(languagesEl.options)
+        .filter((opt) => opt.selected)
+        .map((opt) => opt.value);
 
-      function setStatus(text) { statusEl.textContent = text; }
+      function setStatusForSession(sessionId, text) {
+        if (!sessionId) {
+          statusEl.textContent = text;
+          return;
+        }
+        sessionMessages.set(sessionId, text);
+        if (sessionId === activeSessionId) {
+          statusEl.textContent = text;
+        }
+      }
+
+      function syncActionState() {
+        const activeGenerating = activeSessionId && generatingSessions.has(activeSessionId);
+        solveBtn.disabled = Boolean(activeGenerating);
+        solveBtn.textContent = activeGenerating ? "Generating..." : "Generate Solution";
+        if (activeSessionId && sessionMessages.has(activeSessionId)) {
+          statusEl.textContent = sessionMessages.get(activeSessionId);
+        } else {
+          statusEl.textContent = "Idle";
+        }
+      }
 
       function selectedLanguages() {
         return Array.from(languagesEl.selectedOptions).map((opt) => opt.value);
+      }
+
+      function setSelectedLanguages(languages) {
+        const values = new Set((languages || []).map((x) => String(x).toLowerCase()));
+        for (const option of Array.from(languagesEl.options)) {
+          option.selected = values.has(option.value.toLowerCase());
+        }
+      }
+
+      function clearResultView() {
+        solutions = [];
+        activeLanguage = null;
+        tabsEl.innerHTML = "";
+        codeEl.textContent = "";
+        titleEl.textContent = "";
+        summaryEl.textContent = "";
+        algorithmEl.textContent = "";
+        timeEl.textContent = "";
+        spaceEl.textContent = "";
+        edgeCasesEl.innerHTML = "";
+        relatedEl.innerHTML = "";
+        emptyStateEl.classList.remove("hidden");
+        resultEl.classList.add("hidden");
       }
 
       function renderTabs() {
@@ -321,6 +377,30 @@
         resultEl.classList.remove("hidden");
       }
 
+      function captureActiveSessionDraft() {
+        if (!activeSessionId) {
+          return;
+        }
+        const previous = sessionStateById.get(activeSessionId) || {};
+        sessionStateById.set(activeSessionId, {
+          ...previous,
+          problem_text: problemEl.value,
+          languages: selectedLanguages(),
+        });
+      }
+
+      function applySessionState(sessionId) {
+        const state = sessionStateById.get(sessionId) || {};
+        problemEl.value = state.problem_text || "";
+        const langs = Array.isArray(state.languages) && state.languages.length ? state.languages : defaultLanguages;
+        setSelectedLanguages(langs);
+        if (state.result) {
+          renderResult(state.result);
+        } else {
+          clearResultView();
+        }
+      }
+
       function renderSessions() {
         sessionsEl.innerHTML = "";
         if (!sessions.length) {
@@ -332,9 +412,13 @@
         }
 
         for (const s of sessions) {
+          const state = generatingSessions.has(s.session_id) ? "Generating..." : "";
           const item = document.createElement("div");
           item.className = `session-item${s.session_id === activeSessionId ? " active" : ""}`;
-          item.innerHTML = `<div class="session-name">${s.name}</div><div class="session-title">${s.latest_title || "Untitled"}</div>`;
+          item.innerHTML =
+            `<div class="session-name">${s.name}</div>` +
+            `<div class="session-title">${s.latest_title || "Untitled"}</div>` +
+            `<div class="session-state">${state}</div>`;
           item.addEventListener("click", () => loadSession(s.session_id));
           sessionsEl.appendChild(item);
         }
@@ -348,22 +432,36 @@
           activeSessionId = sessions[0].session_id;
         }
         renderSessions();
+        syncActionState();
       }
 
       async function loadSession(sessionId) {
+        captureActiveSessionDraft();
         activeSessionId = sessionId;
         renderSessions();
-        const resp = await fetch(`/api/sessions/${sessionId}`);
-        const data = await resp.json();
-        const items = Array.isArray(data.items) ? data.items : [];
-        const latest = items.length ? items[items.length - 1] : null;
-        if (latest) {
-          problemEl.value = latest.problem_text || "";
-          renderResult(latest.result || {});
-        } else {
-          emptyStateEl.classList.remove("hidden");
-          resultEl.classList.add("hidden");
+
+        if (!sessionStateById.has(sessionId)) {
+          const resp = await fetch(`/api/sessions/${sessionId}`);
+          const data = await resp.json();
+          const items = Array.isArray(data.items) ? data.items : [];
+          const latest = items.length ? items[items.length - 1] : null;
+          if (latest) {
+            sessionStateById.set(sessionId, {
+              problem_text: latest.problem_text || "",
+              languages: Array.isArray(latest.languages) ? latest.languages : defaultLanguages,
+              result: latest.result || null,
+            });
+          } else {
+            sessionStateById.set(sessionId, {
+              problem_text: "",
+              languages: defaultLanguages,
+              result: null,
+            });
+          }
         }
+
+        applySessionState(sessionId);
+        syncActionState();
       }
 
       async function createSession() {
@@ -376,57 +474,92 @@
         if (!resp.ok) {
           throw new Error(data.error || "Failed to create session");
         }
-        activeSessionId = data.session.session_id;
+        const newSessionId = data.session.session_id;
+        sessionStateById.set(newSessionId, {
+          problem_text: "",
+          languages: defaultLanguages,
+          result: null,
+        });
+        activeSessionId = newSessionId;
         await refreshSessions();
-        await loadSession(activeSessionId);
+        applySessionState(newSessionId);
+        syncActionState();
       }
+
+      problemEl.addEventListener("input", captureActiveSessionDraft);
+      languagesEl.addEventListener("change", captureActiveSessionDraft);
 
       newSessionBtn.addEventListener("click", async () => {
         try {
-          setStatus("Creating session...");
+          setStatusForSession(activeSessionId, "Creating session...");
           await createSession();
-          setStatus("Session created");
+          setStatusForSession(activeSessionId, "Session created");
+          syncActionState();
         } catch (err) {
-          setStatus(`Error: ${err.message}`);
+          setStatusForSession(activeSessionId, `Error: ${err.message}`);
+          syncActionState();
         }
       });
 
       solveBtn.addEventListener("click", async () => {
+        captureActiveSessionDraft();
         const problem_text = problemEl.value.trim();
         const languages = selectedLanguages();
+        let sessionId = null;
 
         if (!problem_text) {
-          setStatus("Provide a problem description first.");
+          setStatusForSession(activeSessionId, "Provide a problem description first.");
+          syncActionState();
           return;
         }
         if (!languages.length) {
-          setStatus("Select at least one language.");
+          setStatusForSession(activeSessionId, "Select at least one language.");
+          syncActionState();
           return;
         }
 
-        solveBtn.disabled = true;
-        setStatus("Generating...");
         try {
           if (!activeSessionId) {
             await createSession();
           }
+          sessionId = activeSessionId;
+          const requestId = (requestCounterBySession.get(sessionId) || 0) + 1;
+          requestCounterBySession.set(sessionId, requestId);
+          generatingSessions.add(sessionId);
+          setStatusForSession(sessionId, "Generating...");
+          renderSessions();
+          syncActionState();
+
           const response = await fetch("/api/solve", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ problem_text, languages, session_id: activeSessionId }),
+            body: JSON.stringify({ problem_text, languages, session_id: sessionId }),
           });
           const payload = await response.json();
           if (!response.ok) {
             throw new Error(payload.error || "Request failed");
           }
-          activeSessionId = payload.session.session_id;
+
+          sessionStateById.set(sessionId, {
+            problem_text,
+            languages,
+            result: payload.result,
+          });
+
           await refreshSessions();
-          renderResult(payload.result);
-          setStatus("Done");
+          const latestRequestId = requestCounterBySession.get(sessionId);
+          if (sessionId === activeSessionId && requestId === latestRequestId) {
+            applySessionState(sessionId);
+          }
+          setStatusForSession(sessionId, "Done");
         } catch (err) {
-          setStatus(`Error: ${err.message}`);
+          setStatusForSession(sessionId || activeSessionId, `Error: ${err.message}`);
         } finally {
-          solveBtn.disabled = false;
+          if (sessionId && generatingSessions.has(sessionId)) {
+            generatingSessions.delete(sessionId);
+          }
+          renderSessions();
+          syncActionState();
         }
       });
 
@@ -438,8 +571,10 @@
           } else if (activeSessionId) {
             await loadSession(activeSessionId);
           }
+          syncActionState();
         } catch (err) {
-          setStatus(`Error: ${err.message}`);
+          setStatusForSession(activeSessionId, `Error: ${err.message}`);
+          syncActionState();
         }
       })();
     </script>
