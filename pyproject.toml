@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leetcode-solver"
+version = "0.1.0"
+description = "Generate LeetCode solutions in multiple languages with algorithm analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+leetcode-solver = "leetcode_solver.cli:main"
+leetcode-solver-ui = "leetcode_solver.webapp:main"

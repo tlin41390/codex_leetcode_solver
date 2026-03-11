@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LeetCode Solver UI</title>
+    <style>
+      :root {
+        --ink: #151515;
+        --paper: #f5f1e8;
+        --accent: #d7562b;
+        --accent-2: #1a4b7a;
+        --muted: #5d5d5d;
+        --card: #fffdf8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--ink);
+        background: radial-gradient(circle at 8% 12%, #ffd7c8 0%, transparent 33%),
+          radial-gradient(circle at 92% 18%, #c8dcf0 0%, transparent 38%), var(--paper);
+      }
+      .shell {
+        max-width: 1360px;
+        margin: 0 auto;
+        padding: 20px 14px 30px;
+      }
+      .head { margin-bottom: 12px; }
+      .head h1 { margin: 0; font-size: 1.9rem; }
+      .head p { margin: 4px 0 0; color: var(--muted); }
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      @media (min-width: 1100px) {
+        .layout { grid-template-columns: 280px 1fr 1.2fr; }
+      }
+      .card {
+        background: var(--card);
+        border: 2px solid #0000001e;
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 10px 26px rgba(0,0,0,0.06);
+      }
+      h2 { margin: 0 0 10px; font-size: 1.05rem; }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      textarea, select, input {
+        width: 100%;
+        border: 2px solid #0000002a;
+        border-radius: 10px;
+        padding: 9px 10px;
+        font-size: 0.95rem;
+        background: #fff;
+      }
+      textarea { min-height: 260px; resize: vertical; }
+      select[multiple] { min-height: 130px; }
+      .row { margin-bottom: 12px; }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      button {
+        appearance: none;
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: var(--accent-2);
+      }
+      button:disabled { opacity: 0.68; cursor: default; }
+      .status { color: var(--muted); font-size: 0.9rem; }
+      .sessions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 560px;
+        overflow-y: auto;
+      }
+      .session-item {
+        border: 2px solid #0000001f;
+        border-radius: 10px;
+        padding: 8px 10px;
+        cursor: pointer;
+        background: #fff;
+      }
+      .session-item.active {
+        border-color: var(--accent-2);
+        background: #f0f6fc;
+      }
+      .session-name {
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+      .session-title {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-top: 3px;
+      }
+      .hidden { display: none; }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .chip {
+        border: 2px solid var(--accent-2);
+        background: #fff;
+        color: var(--accent-2);
+        border-radius: 999px;
+        padding: 5px 11px;
+        font-weight: 700;
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+      .chip.active { background: var(--accent-2); color: #fff; }
+      pre {
+        background: #0f1720;
+        color: #f6f7f8;
+        border-radius: 12px;
+        padding: 12px;
+        overflow-x: auto;
+        max-height: 500px;
+      }
+      .meta p { margin: 7px 0; }
+      .meta ul { margin: 6px 0 10px 18px; }
+      .related a { color: #0f4b86; text-decoration: none; }
+      .related a:hover { text-decoration: underline; }
+      .hint { color: var(--muted); font-size: 0.82rem; }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="head">
+        <h1>LeetCode Solver</h1>
+        <p>Sessions per problem, dropdown language selection, and related practice suggestions.</p>
+      </div>
+
+      <div class="layout">
+        <section class="card">
+          <h2>Sessions</h2>
+          <div class="row">
+            <button id="newSessionBtn" class="secondary" type="button">New Session</button>
+          </div>
+          <div id="sessions" class="sessions"></div>
+        </section>
+
+        <section class="card">
+          <h2>Input</h2>
+          <div class="row">
+            <label for="problem">Problem Description</label>
+            <textarea id="problem" placeholder="Paste full LeetCode statement, examples, and constraints here..."></textarea>
+          </div>
+          <div class="row">
+            <label for="languages">Choose Languages</label>
+            <select id="languages" multiple>
+              <option value="python" selected>Python</option>
+              <option value="java" selected>Java</option>
+              <option value="javascript" selected>JavaScript</option>
+              <option value="cpp">C++</option>
+              <option value="c">C</option>
+              <option value="csharp">C#</option>
+              <option value="go">Go</option>
+              <option value="rust">Rust</option>
+              <option value="typescript">TypeScript</option>
+              <option value="kotlin">Kotlin</option>
+              <option value="swift">Swift</option>
+            </select>
+            <div class="hint">Hold Ctrl (Windows) or Cmd (Mac) to select multiple languages.</div>
+          </div>
+          <div class="actions">
+            <button id="solveBtn" type="button">Generate Solution</button>
+            <span id="status" class="status">Idle</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <div id="emptyState">No output yet. Pick/create a session and generate a solution.</div>
+          <div id="result" class="hidden">
+            <h2 id="title"></h2>
+            <div class="meta">
+              <p><strong>Summary:</strong> <span id="summary"></span></p>
+              <p><strong>Algorithm:</strong> <span id="algorithm"></span></p>
+              <p><strong>Time Complexity:</strong> <code id="timeComplexity"></code></p>
+              <p><strong>Space Complexity:</strong> <code id="spaceComplexity"></code></p>
+              <div>
+                <strong>Edge Cases:</strong>
+                <ul id="edgeCases"></ul>
+              </div>
+              <div class="related">
+                <strong>Related Problems:</strong>
+                <ul id="relatedProblems"></ul>
+              </div>
+            </div>
+            <h3>Code</h3>
+            <div id="tabs" class="chips"></div>
+            <pre><code id="code"></code></pre>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const solveBtn = document.getElementById("solveBtn");
+      const newSessionBtn = document.getElementById("newSessionBtn");
+      const statusEl = document.getElementById("status");
+      const problemEl = document.getElementById("problem");
+      const languagesEl = document.getElementById("languages");
+      const sessionsEl = document.getElementById("sessions");
+      const emptyStateEl = document.getElementById("emptyState");
+      const resultEl = document.getElementById("result");
+      const titleEl = document.getElementById("title");
+      const summaryEl = document.getElementById("summary");
+      const algorithmEl = document.getElementById("algorithm");
+      const timeEl = document.getElementById("timeComplexity");
+      const spaceEl = document.getElementById("spaceComplexity");
+      const edgeCasesEl = document.getElementById("edgeCases");
+      const relatedEl = document.getElementById("relatedProblems");
+      const tabsEl = document.getElementById("tabs");
+      const codeEl = document.getElementById("code");
+
+      let solutions = [];
+      let activeLanguage = null;
+      let sessions = [];
+      let activeSessionId = null;
+
+      function setStatus(text) { statusEl.textContent = text; }
+
+      function selectedLanguages() {
+        return Array.from(languagesEl.selectedOptions).map((opt) => opt.value);
+      }
+
+      function renderTabs() {
+        tabsEl.innerHTML = "";
+        for (const solution of solutions) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `chip${solution.language === activeLanguage ? " active" : ""}`;
+          btn.textContent = solution.language;
+          btn.addEventListener("click", () => {
+            activeLanguage = solution.language;
+            renderTabs();
+            renderCode();
+          });
+          tabsEl.appendChild(btn);
+        }
+      }
+
+      function renderCode() {
+        const item = solutions.find((s) => s.language === activeLanguage);
+        codeEl.textContent = item ? item.code : "";
+      }
+
+      function renderResult(data) {
+        titleEl.textContent = data.title || "Solution";
+        summaryEl.textContent = data.problem_summary || "";
+        algorithmEl.textContent = data.algorithm || "";
+        timeEl.textContent = data.time_complexity || "";
+        spaceEl.textContent = data.space_complexity || "";
+
+        edgeCasesEl.innerHTML = "";
+        const edgeCases = Array.isArray(data.edge_cases) ? data.edge_cases : [];
+        if (!edgeCases.length) {
+          const li = document.createElement("li");
+          li.textContent = "None listed";
+          edgeCasesEl.appendChild(li);
+        } else {
+          for (const edge of edgeCases) {
+            const li = document.createElement("li");
+            li.textContent = edge;
+            edgeCasesEl.appendChild(li);
+          }
+        }
+
+        relatedEl.innerHTML = "";
+        const related = Array.isArray(data.related_problems) ? data.related_problems : [];
+        if (!related.length) {
+          const li = document.createElement("li");
+          li.textContent = "None listed";
+          relatedEl.appendChild(li);
+        } else {
+          for (const item of related) {
+            const li = document.createElement("li");
+            const title = item.title || "Unknown";
+            const difficulty = item.difficulty ? ` (${item.difficulty})` : "";
+            const reason = item.reason ? ` - ${item.reason}` : "";
+            if (item.url) {
+              const link = document.createElement("a");
+              link.href = item.url;
+              link.target = "_blank";
+              link.rel = "noreferrer noopener";
+              link.textContent = title;
+              li.appendChild(link);
+              li.appendChild(document.createTextNode(`${difficulty}${reason}`));
+            } else {
+              li.textContent = `${title}${difficulty}${reason}`;
+            }
+            relatedEl.appendChild(li);
+          }
+        }
+
+        solutions = Array.isArray(data.solutions) ? data.solutions : [];
+        activeLanguage = solutions.length ? solutions[0].language : null;
+        renderTabs();
+        renderCode();
+
+        emptyStateEl.classList.add("hidden");
+        resultEl.classList.remove("hidden");
+      }
+
+      function renderSessions() {
+        sessionsEl.innerHTML = "";
+        if (!sessions.length) {
+          const div = document.createElement("div");
+          div.className = "hint";
+          div.textContent = "No sessions yet.";
+          sessionsEl.appendChild(div);
+          return;
+        }
+
+        for (const s of sessions) {
+          const item = document.createElement("div");
+          item.className = `session-item${s.session_id === activeSessionId ? " active" : ""}`;
+          item.innerHTML = `<div class="session-name">${s.name}</div><div class="session-title">${s.latest_title || "Untitled"}</div>`;
+          item.addEventListener("click", () => loadSession(s.session_id));
+          sessionsEl.appendChild(item);
+        }
+      }
+
+      async function refreshSessions() {
+        const resp = await fetch("/api/sessions");
+        const data = await resp.json();
+        sessions = Array.isArray(data.sessions) ? data.sessions : [];
+        if (!activeSessionId && sessions.length) {
+          activeSessionId = sessions[0].session_id;
+        }
+        renderSessions();
+      }
+
+      async function loadSession(sessionId) {
+        activeSessionId = sessionId;
+        renderSessions();
+        const resp = await fetch(`/api/sessions/${sessionId}`);
+        const data = await resp.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        const latest = items.length ? items[items.length - 1] : null;
+        if (latest) {
+          problemEl.value = latest.problem_text || "";
+          renderResult(latest.result || {});
+        } else {
+          emptyStateEl.classList.remove("hidden");
+          resultEl.classList.add("hidden");
+        }
+      }
+
+      async function createSession() {
+        const resp = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.error || "Failed to create session");
+        }
+        activeSessionId = data.session.session_id;
+        await refreshSessions();
+        await loadSession(activeSessionId);
+      }
+
+      newSessionBtn.addEventListener("click", async () => {
+        try {
+          setStatus("Creating session...");
+          await createSession();
+          setStatus("Session created");
+        } catch (err) {
+          setStatus(`Error: ${err.message}`);
+        }
+      });
+
+      solveBtn.addEventListener("click", async () => {
+        const problem_text = problemEl.value.trim();
+        const languages = selectedLanguages();
+
+        if (!problem_text) {
+          setStatus("Provide a problem description first.");
+          return;
+        }
+        if (!languages.length) {
+          setStatus("Select at least one language.");
+          return;
+        }
+
+        solveBtn.disabled = true;
+        setStatus("Generating...");
+        try {
+          if (!activeSessionId) {
+            await createSession();
+          }
+          const response = await fetch("/api/solve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ problem_text, languages, session_id: activeSessionId }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "Request failed");
+          }
+          activeSessionId = payload.session.session_id;
+          await refreshSessions();
+          renderResult(payload.result);
+          setStatus("Done");
+        } catch (err) {
+          setStatus(`Error: ${err.message}`);
+        } finally {
+          solveBtn.disabled = false;
+        }
+      });
+
+      (async function bootstrap() {
+        try {
+          await refreshSessions();
+          if (!sessions.length) {
+            await createSession();
+          } else if (activeSessionId) {
+            await loadSession(activeSessionId);
+          }
+        } catch (err) {
+          setStatus(`Error: ${err.message}`);
+        }
+      })();
+    </script>
+  </body>
+</html>
