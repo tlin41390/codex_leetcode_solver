@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import uuid
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,34 @@ class SessionStore:
     def __init__(self) -> None:
         self.sessions: dict[str, dict[str, Any]] = {}
 
+    def _main_headline(self, raw_title: str) -> str:
+        text = str(raw_title or "").strip()
+        if not text:
+            return "Untitled"
+        first_line = next((line.strip() for line in text.splitlines() if line.strip()), "")
+        if not first_line:
+            return "Untitled"
+        first_line = re.sub(r"^#+\s*", "", first_line)
+        first_line = re.sub(r"^(?:problem\s*)?#?\d+\s*[\)\].:-]\s*", "", first_line, flags=re.IGNORECASE)
+        first_line = re.sub(r"^\d+\.\s*", "", first_line)
+        return first_line.strip() or "Untitled"
+
+    def _unique_session_name(self, base_name: str, session_id: str) -> str:
+        base = base_name.strip() or "Untitled"
+        existing_names = {
+            str(session.get("name", "")).strip()
+            for sid, session in self.sessions.items()
+            if sid != session_id
+        }
+        if base not in existing_names:
+            return base
+        suffix = 2
+        while True:
+            candidate = f"{base} ({suffix})"
+            if candidate not in existing_names:
+                return candidate
+            suffix += 1
+
     def session_summary(self, session: dict[str, Any]) -> dict[str, Any]:
         return {
             "session_id": session["session_id"],
@@ -40,9 +69,11 @@ class SessionStore:
 
     def create_session(self, name: str | None = None) -> dict[str, Any]:
         sid = str(uuid.uuid4())
+        requested_name = (name or "").strip()
+        clean_name = self._main_headline(requested_name) if requested_name else "Untitled"
         session = {
             "session_id": sid,
-            "name": (name or f"Session {len(self.sessions) + 1}").strip(),
+            "name": self._unique_session_name(clean_name, sid),
             "items": [],
             "updated_at": 0,
             "latest_title": "Untitled",
@@ -58,6 +89,14 @@ class SessionStore:
     def get_session(self, session_id: str) -> dict[str, Any] | None:
         return self.sessions.get(session_id)
 
+    def delete_session(self, session_id: str) -> dict[str, Any]:
+        if session_id not in self.sessions:
+            raise KeyError("Session not found")
+        if len(self.sessions) <= 1:
+            raise ValueError("Cannot delete the only remaining session")
+        removed = self.sessions.pop(session_id)
+        return self.session_summary(removed)
+
     def add_item(self, session: dict[str, Any], problem_text: str, languages: list[str], result: dict[str, Any]) -> None:
         session["items"].append(
             {
@@ -67,7 +106,9 @@ class SessionStore:
             }
         )
         session["updated_at"] += 1
-        session["latest_title"] = result.get("title", "Untitled")
+        latest_title = self._main_headline(str(result.get("title", "")))
+        session["latest_title"] = latest_title
+        session["name"] = self._unique_session_name(latest_title, session["session_id"])
 
 
 def create_app(model: str, base_url: str | None):
@@ -113,6 +154,16 @@ def create_app(model: str, base_url: str | None):
     async def create_session(body: dict[str, Any] = Body(default_factory=dict)) -> dict[str, Any]:
         created = store.create_session(str(body.get("name", "")).strip() or None)
         return {"session": store.session_summary(created)}
+
+    @app.delete("/api/sessions/{session_id}")
+    async def delete_session(session_id: str) -> dict[str, Any]:
+        try:
+            deleted = store.delete_session(session_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Session not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"deleted_session_id": deleted["session_id"]}
 
     @app.post("/api/solve")
     async def solve(body: dict[str, Any] = Body(default_factory=dict)) -> dict[str, Any]:
