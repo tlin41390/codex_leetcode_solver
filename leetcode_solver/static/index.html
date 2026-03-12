@@ -146,6 +146,40 @@
       .related a { color: #0f4b86; text-decoration: none; }
       .related a:hover { text-decoration: underline; }
       .hint { color: var(--muted); font-size: 0.82rem; }
+      .result-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 10px;
+      }
+      .section {
+        border: 2px solid #0000001e;
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .section-title {
+        font-weight: 700;
+      }
+      .toggle-icon {
+        min-width: 34px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        background: #eef3f7;
+        color: #123a60;
+      }
+      .section-content {
+        margin-top: 8px;
+      }
+      .section-content p {
+        margin: 0;
+      }
     </style>
   </head>
   <body>
@@ -197,23 +231,65 @@
           <div id="emptyState">No output yet. Pick/create a session and generate a solution.</div>
           <div id="result" class="hidden">
             <h2 id="title"></h2>
+            <div class="result-toolbar">
+              <button id="showAllBtn" class="secondary" type="button">Show all</button>
+            </div>
             <div class="meta">
-              <p><strong>Summary:</strong> <span id="summary"></span></p>
-              <p><strong>Algorithm:</strong> <span id="algorithm"></span></p>
-              <p><strong>Time Complexity:</strong> <code id="timeComplexity"></code></p>
-              <p><strong>Space Complexity:</strong> <code id="spaceComplexity"></code></p>
+              <div class="section">
+                <div class="section-header">
+                  <div class="section-title">Summary</div>
+                  <button class="toggle-icon" data-section="summarySection" type="button" aria-expanded="false">+</button>
+                </div>
+                <div id="summarySection" class="section-content hidden">
+                  <p id="summary"></p>
+                </div>
+              </div>
+              <div class="section">
+                <div class="section-header">
+                  <div class="section-title">Algorithm</div>
+                  <button class="toggle-icon" data-section="algorithmSection" type="button" aria-expanded="false">+</button>
+                </div>
+                <div id="algorithmSection" class="section-content hidden">
+                  <p id="algorithm"></p>
+                </div>
+              </div>
+              <div class="section">
+                <div class="section-header">
+                  <div class="section-title">Time Complexity</div>
+                  <button class="toggle-icon" data-section="timeSection" type="button" aria-expanded="false">+</button>
+                </div>
+                <div id="timeSection" class="section-content hidden">
+                  <code id="timeComplexity"></code>
+                </div>
+              </div>
+              <div class="section">
+                <div class="section-header">
+                  <div class="section-title">Space Complexity</div>
+                  <button class="toggle-icon" data-section="spaceSection" type="button" aria-expanded="false">+</button>
+                </div>
+                <div id="spaceSection" class="section-content hidden">
+                  <code id="spaceComplexity"></code>
+                </div>
+              </div>
               <div>
                 <strong>Edge Cases:</strong>
                 <ul id="edgeCases"></ul>
+              </div>
+              <div class="section">
+                <div class="section-header">
+                  <div class="section-title">Code</div>
+                  <button class="toggle-icon" data-section="codeSection" type="button" aria-expanded="false">+</button>
+                </div>
+                <div id="codeSection" class="section-content hidden">
+                  <div id="tabs" class="chips"></div>
+                  <pre><code id="code"></code></pre>
+                </div>
               </div>
               <div class="related">
                 <strong>Related Problems:</strong>
                 <ul id="relatedProblems"></ul>
               </div>
             </div>
-            <h3>Code</h3>
-            <div id="tabs" class="chips"></div>
-            <pre><code id="code"></code></pre>
           </div>
         </section>
       </div>
@@ -237,6 +313,8 @@
       const relatedEl = document.getElementById("relatedProblems");
       const tabsEl = document.getElementById("tabs");
       const codeEl = document.getElementById("code");
+      const showAllBtn = document.getElementById("showAllBtn");
+      const collapsibleSectionIds = ["summarySection", "algorithmSection", "timeSection", "spaceSection", "codeSection"];
 
       let solutions = [];
       let activeLanguage = null;
@@ -295,8 +373,32 @@
         spaceEl.textContent = "";
         edgeCasesEl.innerHTML = "";
         relatedEl.innerHTML = "";
+        collapseAllSections();
         emptyStateEl.classList.remove("hidden");
         resultEl.classList.add("hidden");
+      }
+
+      function setSectionVisibility(sectionId, isVisible) {
+        const sectionEl = document.getElementById(sectionId);
+        const toggleBtn = document.querySelector(`.toggle-icon[data-section="${sectionId}"]`);
+        if (!sectionEl || !toggleBtn) {
+          return;
+        }
+        sectionEl.classList.toggle("hidden", !isVisible);
+        toggleBtn.textContent = isVisible ? "-" : "+";
+        toggleBtn.setAttribute("aria-expanded", isVisible ? "true" : "false");
+      }
+
+      function collapseAllSections() {
+        for (const sectionId of collapsibleSectionIds) {
+          setSectionVisibility(sectionId, false);
+        }
+      }
+
+      function showAllSections() {
+        for (const sectionId of collapsibleSectionIds) {
+          setSectionVisibility(sectionId, true);
+        }
       }
 
       function renderTabs() {
@@ -372,6 +474,7 @@
         activeLanguage = solutions.length ? solutions[0].language : null;
         renderTabs();
         renderCode();
+        collapseAllSections();
 
         emptyStateEl.classList.add("hidden");
         resultEl.classList.remove("hidden");
@@ -488,6 +591,18 @@
 
       problemEl.addEventListener("input", captureActiveSessionDraft);
       languagesEl.addEventListener("change", captureActiveSessionDraft);
+      showAllBtn.addEventListener("click", showAllSections);
+
+      for (const toggleBtn of document.querySelectorAll(".toggle-icon")) {
+        toggleBtn.addEventListener("click", () => {
+          const sectionId = toggleBtn.dataset.section;
+          if (!sectionId) {
+            return;
+          }
+          const isExpanded = toggleBtn.getAttribute("aria-expanded") === "true";
+          setSectionVisibility(sectionId, !isExpanded);
+        });
+      }
 
       newSessionBtn.addEventListener("click", async () => {
         try {
