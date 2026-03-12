@@ -43,6 +43,7 @@ class SolverOutput:
     algorithm: str
     time_complexity: str
     space_complexity: str
+    data_structure_algorithm: List[str] = field(default_factory=list)
     edge_cases: List[str] = field(default_factory=list)
     solutions: List[LanguageSolution] = field(default_factory=list)
     related_problems: List[RelatedProblem] = field(default_factory=list)
@@ -69,6 +70,10 @@ class SolverOutput:
         if not isinstance(edge_cases_raw, list):
             raise ValueError("edge_cases must be a list of strings")
         edge_cases = [str(item) for item in edge_cases_raw]
+        data_structure_algorithm_raw = data.get("data_structure_algorithm", [])
+        if not isinstance(data_structure_algorithm_raw, list):
+            raise ValueError("data_structure_algorithm must be a list of strings")
+        data_structure_algorithm = [str(item) for item in data_structure_algorithm_raw]
         related_raw = data.get("related_problems", [])
         if not isinstance(related_raw, list):
             raise ValueError("related_problems must be a list")
@@ -77,6 +82,7 @@ class SolverOutput:
             title=str(data["title"]).strip(),
             problem_summary=str(data["problem_summary"]).strip(),
             algorithm=str(data["algorithm"]).strip(),
+            data_structure_algorithm=data_structure_algorithm,
             time_complexity=str(data["time_complexity"]).strip(),
             space_complexity=str(data["space_complexity"]).strip(),
             edge_cases=edge_cases,

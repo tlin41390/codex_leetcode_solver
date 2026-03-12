@@ -198,6 +198,10 @@
         cursor: pointer;
       }
       .chip.active { background: var(--accent-2); color: #fff; }
+      .chip-static {
+        cursor: default;
+        white-space: nowrap;
+      }
       pre {
         background: var(--pre-bg);
         color: var(--pre-ink);
@@ -315,11 +319,20 @@
               </div>
               <div class="section">
                 <div class="section-header">
-                  <div class="section-title">Algorithm</div>
+                  <div class="section-title">Detailed Description</div>
                   <button class="toggle-icon" data-section="algorithmSection" type="button" aria-expanded="false">+</button>
                 </div>
                 <div id="algorithmSection" class="section-content hidden">
                   <p id="algorithm"></p>
+                </div>
+              </div>
+              <div class="section">
+                <div class="section-header">
+                  <div class="section-title">Data Structure/Algorithm</div>
+                  <button class="toggle-icon" data-section="dsAlgoSection" type="button" aria-expanded="false">+</button>
+                </div>
+                <div id="dsAlgoSection" class="section-content hidden">
+                  <div id="dataStructureAlgorithm" class="chips"></div>
                 </div>
               </div>
               <div class="section">
@@ -385,6 +398,7 @@
       const titleEl = document.getElementById("title");
       const summaryEl = document.getElementById("summary");
       const algorithmEl = document.getElementById("algorithm");
+      const dsAlgoEl = document.getElementById("dataStructureAlgorithm");
       const timeEl = document.getElementById("timeComplexity");
       const spaceEl = document.getElementById("spaceComplexity");
       const edgeCasesEl = document.getElementById("edgeCases");
@@ -393,7 +407,7 @@
       const codeEl = document.getElementById("code");
       const showAllBtn = document.getElementById("showAllBtn");
       const themeBtn = document.getElementById("themeBtn");
-      const collapsibleSectionIds = ["summarySection", "algorithmSection", "timeSection", "spaceSection", "edgeSection", "codeSection", "relatedSection"];
+      const collapsibleSectionIds = ["summarySection", "algorithmSection", "dsAlgoSection", "timeSection", "spaceSection", "edgeSection", "codeSection", "relatedSection"];
       const themeStorageKey = "leetcode_solver_theme";
 
       let solutions = [];
@@ -451,6 +465,7 @@
         titleEl.textContent = "";
         summaryEl.textContent = "";
         algorithmEl.textContent = "";
+        dsAlgoEl.innerHTML = "";
         timeEl.textContent = "";
         spaceEl.textContent = "";
         edgeCasesEl.innerHTML = "";
@@ -508,6 +523,21 @@
         titleEl.textContent = data.title || "Solution";
         summaryEl.textContent = data.problem_summary || "";
         algorithmEl.textContent = data.algorithm || "";
+        dsAlgoEl.innerHTML = "";
+        const categories = Array.isArray(data.data_structure_algorithm) ? data.data_structure_algorithm : [];
+        if (!categories.length) {
+          const tag = document.createElement("span");
+          tag.className = "chip chip-static";
+          tag.textContent = "None listed";
+          dsAlgoEl.appendChild(tag);
+        } else {
+          for (const category of categories) {
+            const tag = document.createElement("span");
+            tag.className = "chip chip-static";
+            tag.textContent = category;
+            dsAlgoEl.appendChild(tag);
+          }
+        }
         timeEl.textContent = data.time_complexity || "";
         spaceEl.textContent = data.space_complexity || "";
 

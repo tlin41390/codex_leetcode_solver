@@ -21,6 +21,7 @@ class ParsingTests(unittest.TestCase):
             "title": "Two Sum",
             "problem_summary": "Find two indices.",
             "algorithm": "Use hash map.",
+            "data_structure_algorithm": ["Hash Map"],
             "time_complexity": "O(n)",
             "space_complexity": "O(n)",
             "edge_cases": ["duplicates"],
@@ -36,6 +37,7 @@ class ParsingTests(unittest.TestCase):
         }
         obj = SolverOutput.from_dict(data)
         self.assertEqual(obj.time_complexity, "O(n)")
+        self.assertEqual(obj.data_structure_algorithm, ["Hash Map"])
         self.assertEqual(obj.related_problems[0].difficulty, "Easy")
 
     def test_retry_delay_uses_retry_after(self) -> None:
