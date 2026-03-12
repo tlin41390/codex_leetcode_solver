@@ -8,8 +8,10 @@ version = "0.1.0"
 description = "Generate LeetCode solutions in multiple languages with algorithm analysis"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn>=0.30.0"
+]
 
 [project.scripts]
-leetcode-solver = "leetcode_solver.cli:main"
 leetcode-solver-ui = "leetcode_solver.webapp:main"

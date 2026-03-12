@@ -1,6 +1,6 @@
-# LeetCode Solver (Multi-language)
+# LeetCode Solver (Web UI)
 
-This application reads a LeetCode problem description and uses an OpenAI-compatible model to generate:
+This application uses an OpenAI-compatible model to generate:
 
 - Working code in multiple programming languages
 - A detailed algorithm explanation
@@ -9,18 +9,17 @@ This application reads a LeetCode problem description and uses an OpenAI-compati
 
 ## Features
 
-- Input from file (`--file`) or interactive paste mode
-- Optional URL fetch mode (`--url`) for problem pages
-- Multi-language output (`--languages python,java,cpp,javascript,...`)
-- Structured schema validation
-- Output as `markdown` or `json`
-- Web UI with language tabs for generated code
+- Web UI with session-based workflows
+- Multi-language generation from dropdown selection
+- Language tabs for generated code
 - Web UI sessions for tracking separate problem-solving threads
 - Related practice problems included with each solution
+- Structured schema validation
 
 ## Requirements
 
 - Python 3.10+
+- FastAPI + Uvicorn (installed via `pip install -e .`)
 - `OPENAI_API_KEY` environment variable (from shell or `.env` file)
 - Optional: `OPENAI_BASE_URL` for non-default OpenAI-compatible providers
 
@@ -39,38 +38,18 @@ python -m venv .venv
 pip install -e .
 ```
 
-## Usage
-
-Use a file:
-
-```bash
-leetcode-solver --file examples/two_sum.txt --languages python,java,javascript --format markdown
-```
-
-Use a URL:
-
-```bash
-leetcode-solver --url https://leetcode.com/problems/two-sum/description/ --languages python,java,cpp --format markdown
-```
-
-Write to output file:
-
-```bash
-leetcode-solver --file examples/two_sum.txt --languages python,cpp --output result.md --format markdown
-```
-
-Interactive paste mode (no `--file`):
-
-```bash
-leetcode-solver --languages python,go,rust --format json
-```
-
 ## Web UI
 
 Run:
 
 ```bash
 leetcode-solver-ui --host 127.0.0.1 --port 8080
+```
+
+Alternative:
+
+```bash
+python -m leetcode_solver.webapp --host 127.0.0.1 --port 8080
 ```
 
 Open `http://127.0.0.1:8080` in your browser.

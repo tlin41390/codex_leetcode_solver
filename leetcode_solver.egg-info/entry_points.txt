@@ -1,3 +1,2 @@
 [console_scripts]
-leetcode-solver = leetcode_solver.cli:main
 leetcode-solver-ui = leetcode_solver.webapp:main
